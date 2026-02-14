@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARC Raiders Map Selector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3rem;
+    }
+    
+    .title-section {
+      text-align: center;
+    }
+    
+    .main-title {
+      font-size: 3rem;
+      font-weight: bold;
+      background: linear-gradient(90deg, #22d3ee, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    
+    .subtitle {
+      font-size: 1.5rem;
+      color: #d1d5db;
+    }
+    
+    .wheel-container {
+      position: relative;
+      width: 768px;
+      height: 768px;
+    }
+    
+    .pointer {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.7));
+    }
+    
+    .center-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1f2937, #111827);
+      border: 4px solid #22d3ee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .center-text {
+      color: #22d3ee;
+      font-size: 1.25rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+    
+    .wheel-svg {
+      filter: drop-shadow(0 25px 50px -12px rgba(0, 0, 0, 0.5));
+    }
+    
+    .spin-button {
+      padding: 1rem 3rem;
+      font-size: 1.25rem;
+      font-weight: bold;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+      background: linear-gradient(90deg, #06b6d4, #2563eb);
+      box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.3);
+    }
+    
+    .spin-button:hover:not(:disabled) {
+      background: linear-gradient(90deg, #22d3ee, #3b82f6);
+      transform: scale(1.05);
+    }
+    
+    .spin-button:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+    
+    .spin-button:disabled {
+      background: #4b5563;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title-section">
+      <h1 class="main-title">ARC RAIDERS</h1>
+      <h2 class="subtitle">Map Selector</h2>
+    </div>
+    
+    <div class="wheel-container">
+      <svg class="pointer" width="80" height="60" viewBox="0 0 80 60">
+        <polygon points="40,55 10,5 70,5" fill="#f59e0b" stroke="#d97706" stroke-width="3"/>
+      </svg>
+      
+      <div class="center-circle">
+        <div class="center-text">ARC</div>
+      </div>
+      
+      <svg id="wheel" class="wheel-svg" width="768" height="768" viewBox="0 0 400 400">
+        <defs id="gradients"></defs>
+        <g id="segments"></g>
+        <circle cx="200" cy="200" r="190" fill="none" stroke="#334155" stroke-width="6" />
+      </svg>
+    </div>
+    
+    <button id="spinButton" class="spin-button">SPIN THE WHEEL</button>
+  </div>
+
+  <script>
+    const maps = [
+      { name: 'Dam Battlegrounds', color: '#1a5f7a', type: 'map' },
+      { name: 'Stella Montis Free Kit', color: '#fbbf24', type: 'bonus' },
+      { name: 'Buried City', color: '#c9751f', type: 'map' },
+      { name: 'Stella Montis Free Kit', color: '#fbbf24', type: 'bonus' },
+      { name: 'Spaceport', color: '#2d4263', type: 'map' },
+      { name: 'Stella Montis Free Kit', color: '#fbbf24', type: 'bonus' },
+      { name: 'Stella Montis', color: '#5c2e7e', type: 'map' },
+      { name: 'Stella Montis Free Kit', color: '#fbbf24', type: 'bonus' },
+      { name: 'Blue Gate', color: '#1b4332', type: 'map' },
+      { name: 'Stella Montis Free Kit', color: '#fbbf24', type: 'bonus' }
+    ];
+
+    let rotation = 0;
+    let isSpinning = false;
+
+    function getSegmentAngle(index) {
+      const totalMaps = maps.filter(m => m.type === 'map').length;
+      const totalBonus = maps.filter(m => m.type === 'bonus').length;
+      const mapAngle = 360 / (totalMaps + totalBonus * 0.25);
+      return maps[index].type === 'bonus' ? mapAngle * 0.25 : mapAngle;
+    }
+
+    // Create gradients
+    const gradientsContainer = document.getElementById('gradients');
+    maps.forEach((map, i) => {
+      const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      gradient.setAttribute('id', `gradient-${i}`);
+      gradient.setAttribute('x1', '0%');
+      gradient.setAttribute('y1', '0%');
+      gradient.setAttribute('x2', '100%');
+      gradient.setAttribute('y2', '100%');
+      
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('style', `stop-color:${map.color};stop-opacity:1`);
+      
+      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('style', `stop-color:${map.color};stop-opacity:0.7`);
+      
+      gradient.appendChild(stop1);
+      gradient.appendChild(stop2);
+      gradientsContainer.appendChild(gradient);
+    });
+
+    // Create segments
+    const segmentsContainer = document.getElementById('segments');
+    maps.forEach((map, index) => {
+      let startAngle = -90;
+      for (let i = 0; i < index; i++) {
+        startAngle += getSegmentAngle(i);
+      }
+      
+      const currentSegmentAngle = getSegmentAngle(index);
+      const endAngle = startAngle + currentSegmentAngle;
+      
+      const x1 = 200 + 190 * Math.cos((startAngle * Math.PI) / 180);
+      const y1 = 200 + 190 * Math.sin((startAngle * Math.PI) / 180);
+      const x2 = 200 + 190 * Math.cos((endAngle * Math.PI) / 180);
+      const y2 = 200 + 190 * Math.sin((endAngle * Math.PI) / 180);
+
+      const largeArc = currentSegmentAngle > 180 ? 1 : 0;
+      const pathData = `M 200 200 L ${x1} ${y1} A 190 190 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathData);
+      path.setAttribute('fill', `url(#gradient-${index})`);
+      path.setAttribute('stroke', '#1e293b');
+      path.setAttribute('stroke-width', '3');
+      
+      const textAngle = startAngle + currentSegmentAngle / 2;
+      const textRadius = map.type === 'bonus' ? 145 : 135;
+      const textX = 200 + textRadius * Math.cos((textAngle * Math.PI) / 180);
+      const textY = 200 + textRadius * Math.sin((textAngle * Math.PI) / 180);
+      
+      const fontSize = map.type === 'bonus' ? '7' : '12';
+      const textRotation = map.type === 'bonus' ? textAngle : textAngle + 90;
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', textX);
+      text.setAttribute('y', textY);
+      text.setAttribute('fill', 'white');
+      text.setAttribute('font-size', fontSize);
+      text.setAttribute('font-weight', 'bold');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('transform', `rotate(${textRotation}, ${textX}, ${textY})`);
+      text.setAttribute('style', 'text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5); stroke: #000; stroke-width: 0.3px; paint-order: stroke fill; pointer-events: none; user-select: none;');
+      text.textContent = map.name;
+      
+      g.appendChild(path);
+      g.appendChild(text);
+      segmentsContainer.appendChild(g);
+    });
+
+    const wheel = document.getElementById('wheel');
+    const spinButton = document.getElementById('spinButton');
+
+    function spinWheel() {
+      if (isSpinning) return;
+
+      isSpinning = true;
+      spinButton.disabled = true;
+      spinButton.textContent = 'SPINNING...';
+
+      const minSpins = 5;
+      const maxSpins = 8;
+      const spins = minSpins + Math.random() * (maxSpins - minSpins);
+      const randomDegree = Math.random() * 360;
+      const totalRotation = rotation + (spins * 360) + randomDegree;
+
+      rotation = totalRotation;
+      
+      wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+      wheel.style.transform = `rotate(${totalRotation}deg)`;
+
+      setTimeout(() => {
+        isSpinning = false;
+        spinButton.disabled = false;
+        spinButton.textContent = 'SPIN THE WHEEL';
+      }, 4000);
+    }
+
+    spinButton.addEventListener('click', spinWheel);
+  </script>
+</body>
+</html>
